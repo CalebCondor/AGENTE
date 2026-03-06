@@ -4,7 +4,12 @@ import path from "node:path";
 import TelegramBot from "node-telegram-bot-api";
 import { Database } from "bun:sqlite";
 import { agent } from "./agent";
-import { readFileTool } from "./tools/storage-tools";
+import {
+  getDownloadFileTool,
+  listFilesTool,
+  querySqliteTool,
+  readFileTool,
+} from "./tools/storage-tools";
 
 const token = process.env.TELEGRAM_TOKEN;
 
@@ -126,6 +131,25 @@ function normalizeToolResults(toolResults: unknown): ToolResultEntry[] {
   }
 
   return normalized;
+}
+
+function parseToolCallsFromText(
+  text: string,
+): Array<{ name: string; arguments: Record<string, unknown> }> | null {
+  // Look for JSON array in the text
+  const jsonMatch = text.match(/\[.*\]/s);
+  if (!jsonMatch) return null;
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item) => item.name && item.arguments);
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function extractDownloadPaths(
@@ -494,6 +518,48 @@ bot.on("message", async (msg) => {
 
     const historyMessages = getRecentHistoryMessages(chatId, 18);
     const response = await agent.generate(historyMessages as never);
+
+    // Check if response.text contains tool calls
+    const toolCalls = response.text
+      ? parseToolCallsFromText(response.text)
+      : null;
+    if (toolCalls && toolCalls.length > 0) {
+      const executedResults: ToolResultEntry[] = [];
+      for (const call of toolCalls) {
+        try {
+          let result: unknown;
+          const args = { ...call.arguments };
+          if (args.scope === ".") args.scope = "workspace";
+          if (call.name === "list_files" && listFilesTool.execute) {
+            result = await listFilesTool.execute(args as any, {});
+          } else if (call.name === "read_file" && readFileTool.execute) {
+            result = await readFileTool.execute(args as any, {});
+          } else if (call.name === "query_sqlite" && querySqliteTool.execute) {
+            result = await querySqliteTool.execute(args as any, {});
+          } else if (
+            call.name === "get_download_file" &&
+            getDownloadFileTool.execute
+          ) {
+            result = await getDownloadFileTool.execute(args as any, {});
+          }
+          executedResults.push({
+            toolName: call.name,
+            args: call.arguments,
+            result: result as Record<string, unknown>,
+          });
+        } catch (error) {
+          executedResults.push({
+            toolName: call.name,
+            args: call.arguments,
+            result: { error: String(error) },
+          });
+        }
+      }
+      // Override toolResults
+      (response as any).toolResults = executedResults;
+      // Clear text since we have results
+      (response as any).text = "";
+    }
 
     const downloads = extractDownloadPaths(response.toolResults);
     let textSent = "";

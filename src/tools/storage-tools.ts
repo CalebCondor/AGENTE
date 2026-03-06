@@ -6,9 +6,10 @@ import * as XLSX from "xlsx";
 import { z } from "zod";
 
 const PROJECT_SRC = path.resolve(process.cwd(), "src");
-const DOCUMENTS_ROOT = path.join(PROJECT_SRC, "documents");
-const DATA_ROOT = path.join(PROJECT_SRC, "data");
-const ASSETS_ROOT = path.join(PROJECT_SRC, "assets");
+const WORKSPACE_ROOT = path.join(PROJECT_SRC, "workspace");
+const DOCUMENTS_ROOT = path.join(WORKSPACE_ROOT, "documents");
+const DATA_ROOT = path.join(WORKSPACE_ROOT, "data");
+const ASSETS_ROOT = path.join(WORKSPACE_ROOT, "assets");
 
 const READABLE_EXTENSIONS = new Set([
   ".md",
@@ -48,14 +49,15 @@ const DOWNLOADABLE_EXTENSIONS = new Set([
   ...VIDEO_EXTENSIONS,
 ]);
 
-function getRoot(scope: "documents" | "data" | "assets") {
+function getRoot(scope: "documents" | "data" | "assets" | "workspace") {
   if (scope === "documents") return DOCUMENTS_ROOT;
   if (scope === "data") return DATA_ROOT;
-  return ASSETS_ROOT;
+  if (scope === "assets") return ASSETS_ROOT;
+  return WORKSPACE_ROOT;
 }
 
 function safeResolve(
-  scope: "documents" | "data" | "assets",
+  scope: "documents" | "data" | "assets" | "workspace",
   relativePath: string,
 ) {
   const root = getRoot(scope);
@@ -66,20 +68,32 @@ function safeResolve(
 
   if (scope === "data") {
     normalizedPath = normalizedPath
+      .replace(/^src\/workspace\/data\//i, "")
+      .replace(/^workspace\/data\//i, "")
       .replace(/^src\/data\//i, "")
       .replace(/^data\//i, "");
   }
 
   if (scope === "documents") {
     normalizedPath = normalizedPath
+      .replace(/^src\/workspace\/documents\//i, "")
+      .replace(/^workspace\/documents\//i, "")
       .replace(/^src\/documents\//i, "")
       .replace(/^documents\//i, "");
   }
 
   if (scope === "assets") {
     normalizedPath = normalizedPath
+      .replace(/^src\/workspace\/assets\//i, "")
+      .replace(/^workspace\/assets\//i, "")
       .replace(/^src\/assets\//i, "")
       .replace(/^assets\//i, "");
+  }
+
+  if (scope === "workspace") {
+    normalizedPath = normalizedPath
+      .replace(/^src\/workspace\//i, "")
+      .replace(/^workspace\//i, "");
   }
 
   const absolutePath = path.resolve(root, normalizedPath);
@@ -92,7 +106,7 @@ function safeResolve(
 }
 
 async function resolveExistingPath(
-  scope: "documents" | "data" | "assets",
+  scope: "documents" | "data" | "assets" | "workspace",
   relativePath: string,
 ) {
   const directPath = safeResolve(scope, relativePath);
@@ -150,9 +164,9 @@ function toSimpleTable(rows: Array<Record<string, unknown>>, maxRows: number) {
 export const listFilesTool = createTool({
   id: "list_files",
   description:
-    "Lista archivos disponibles en src/documents, src/data o src/assets. Usa esta herramienta antes de leer o descargar. En assets encontrarás imágenes, videos y otros archivos multimedia.",
+    "Lista archivos disponibles en src/workspace/documents, src/workspace/data, src/workspace/assets o src/workspace. Usa esta herramienta antes de leer o descargar. En assets encontrarás imágenes, videos y otros archivos multimedia.",
   inputSchema: z.object({
-    scope: z.enum(["documents", "data", "assets"]),
+    scope: z.enum(["documents", "data", "assets", "workspace"]),
     contains: z.string().optional(),
   }),
   execute: async ({ scope, contains }) => {
@@ -177,7 +191,7 @@ export const readFileTool = createTool({
   description:
     "Lee contenido de archivos legibles (.md, .txt, .csv, .json, .xlsx, .xls). Para PDF/DOCX/imágenes/videos recomienda descarga.",
   inputSchema: z.object({
-    scope: z.enum(["documents", "data", "assets"]),
+    scope: z.enum(["documents", "data", "assets", "workspace"]),
     relativePath: z.string(),
     maxChars: z.number().int().positive().max(40000).default(12000),
     maxRows: z.number().int().positive().max(500).default(100),
