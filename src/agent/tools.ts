@@ -1,0 +1,68 @@
+// src/agent/tools.ts
+// Definiciones de las herramientas (tools) que Claude puede invocar
+
+import Anthropic from "@anthropic-ai/sdk";
+
+export const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "get_perfil",
+    description:
+      "Obtiene los datos del perfil del usuario autenticado en DoctorRecetas. " +
+      "Usalo cuando el usuario pregunte por su perfil, datos personales, nombre, correo, etc.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "actualizar_perfil",
+    description:
+      "Actualiza campos del perfil del usuario en DoctorRecetas. " +
+      "Usalo cuando el usuario quiera cambiar su nombre, email, telefono u otros datos. " +
+      "Solo incluye los campos que el usuario quiere cambiar. " +
+      "Los nombres de campo exactos que acepta la API son: " +
+      "us_nombres (nombre completo), us_email (correo), us_telefono (telefono), " +
+      "us_pais (pais), us_direccion (direccion), us_ciudad (ciudad), " +
+      "us_fech_nac (fecha nacimiento YYYY-MM-DD), us_code_postal (codigo postal). " +
+      "Usa SIEMPRE estos nombres exactos en el objeto campos.",
+    input_schema: {
+      type: "object",
+      properties: {
+        campos: {
+          type: "object",
+          description:
+            'Objeto JSON con los campos a actualizar. Ej: {"us_nombres": "Juan"}',
+        },
+      },
+      required: ["campos"],
+    },
+  },
+  {
+    name: "get_ordenes",
+    description:
+      "Obtiene las ordenes/pedidos del usuario autenticado en DoctorRecetas. " +
+      "Usalo cuando pregunte por compras, pedidos, productos comprados o enlaces de descarga.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "get_pagos",
+    description:
+      "Obtiene el historial de pagos y transacciones del usuario autenticado. " +
+      "Usalo cuando pregunte por pagos, facturas o transacciones.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "get_productos",
+    description:
+      "Obtiene el catalogo de todos los productos disponibles en DoctorRecetas. " +
+      "Usalo cuando pregunte que productos hay, que venden, que esta disponible o quiera buscar algo.",
+    input_schema: {
+      type: "object",
+      properties: {
+        busqueda: {
+          type: "string",
+          description:
+            "Termino de busqueda opcional para filtrar productos por nombre.",
+        },
+      },
+      required: [],
+    },
+  },
+];
