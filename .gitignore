@@ -34,7 +34,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 # Datos
-/src/data/*
-/src/documents/*
-/src/assets/*
+/src/workspace/data/*
+/src/workspace/documents/*
+/src/workspace/assets/*
 /src/historial-chats/*
