@@ -4,9 +4,17 @@ import { runAgent } from "./agent/loop";
 import { conversations, sessions, ANTHROPIC_MODEL } from "./agent/state";
 import { apiPost } from "./api/http";
 import { LOGIN_URL } from "./api/urls";
+import { initDb } from "./agent/db";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TELEGRAM_BOT_TOKEN) throw new Error("Missing TELEGRAM_BOT_TOKEN");
+
+// Inicializar DB al arrancar el bot
+initDb().then(() => {
+  console.info("Database initialized successfully.");
+}).catch(err => {
+  console.error("Database initialization failed:", err);
+});
 
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 

@@ -65,4 +65,31 @@ export const TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: "recordar_conocimiento",
+    description:
+      "Guarda un par de pregunta y respuesta en la base de datos de conocimiento de la IA para usarlo en el futuro. " +
+      "Úsalo cuando el usuario te enseñe algo nuevo o te de una respuesta corregida.",
+    input_schema: {
+      type: "object",
+      properties: {
+        pregunta: { type: "string", description: "La pregunta o concepto a aprender." },
+        respuesta: { type: "string", description: "La respuesta o información correcta." },
+      },
+      required: ["pregunta", "respuesta"],
+    },
+  },
+  {
+    name: "buscar_conocimiento",
+    description:
+      "Busca información específica en mi base de datos de aprendizaje previo. " +
+      "Úsalo antes de responder si no estás seguro de un dato interno o si el usuario pregunta algo que podrías haber aprendido antes.",
+    input_schema: {
+      type: "object",
+      properties: {
+        busqueda: { type: "string", description: "Palabra clave o frase a buscar." },
+      },
+      required: ["busqueda"],
+    },
+  },
 ];

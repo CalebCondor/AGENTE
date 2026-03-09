@@ -3,6 +3,7 @@
 
 import { sessions } from "./state";
 import { apiPost, apiGet } from "../api/http";
+import { db } from "./db";
 import {
   PERFIL_URL,
   MIS_ORDENES_URL,
@@ -141,6 +142,35 @@ export async function executeTool(
       return JSON.stringify({ success: true, data: filtered });
     }
     return JSON.stringify({ success: false, error: "Formato inesperado de la API" });
+  }
+
+  if (toolName === "recordar_conocimiento") {
+    const q = String(toolInput["pregunta"] ?? "");
+    const a = String(toolInput["respuesta"] ?? "");
+    try {
+      await db.query(
+        "INSERT INTO conocimiento_especifico (pregunta, respuesta) VALUES ($1, $2)",
+        [q, a]
+      );
+      return JSON.stringify({ success: true, message: "Aprendizaje guardado correctamente." });
+    } catch (e: any) {
+      return JSON.stringify({ success: false, error: e.message });
+    }
+  }
+
+  if (toolName === "buscar_conocimiento") {
+    const b = String(toolInput["busqueda"] ?? "").toLowerCase();
+    try {
+      const { rows } = await db.query(
+        "SELECT pregunta, respuesta FROM conocimiento_especifico " +
+        "WHERE LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1 " +
+        "ORDER BY created_at DESC LIMIT 5",
+        [`%${b}%`]
+      );
+      return JSON.stringify({ success: true, resultados: rows });
+    } catch (e: any) {
+      return JSON.stringify({ success: false, error: e.message });
+    }
   }
 
   return JSON.stringify({ success: false, error: `Herramienta desconocida: ${toolName}` });

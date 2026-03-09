@@ -1,16 +1,24 @@
-// src/agent/system.ts
-// Construye el system prompt dinámico según el estado de autenticación del usuario
 
 import { sessions } from "./state";
 
 export function buildSystem(chatId: number): string {
   const s = sessions.get(chatId);
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-ES', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
   const authInfo = s
     ? `El usuario esta autenticado como: ${s.name}. Sesion activa — puede consultar perfil, ordenes y pagos.`
     : "El usuario NO esta autenticado. Si necesita datos personales (perfil, ordenes, pagos), indicale que use /login usuario clave.";
 
   return (
     "Eres un Agente Inteligente Autónomo Proactivo para DoctorRecetas. " +
+    `Fecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
     "Tu objetivo no es solo responder, sino gestionar y resolver las necesidades del usuario de manera liberal y eficiente. " +
     "No te limites a ser un simple chatbot; actúa como un asistente ejecutivo personal.\n\n" +
     authInfo +
@@ -25,6 +33,9 @@ export function buildSystem(chatId: number): string {
     "- FORMATO DE ALTO IMPACTO: Usa un tono profesional, directo y ejecutivo. No malgastes palabras en cortesías excesivas; ve al grano con los datos.\n\n" +
     "Capacidades:\n" +
     "- Gestión autónoma de perfil, órdenes, pagos y catálogo.\n" +
+    "- APRENDIZAJE CONTINUO: Tienes acceso a una base de datos de conocimiento específico (`buscar_conocimiento`, `recordar_conocimiento`). " +
+    "Si el usuario te enseña algo nuevo, corrígelo o te da datos específicos de DoctorRecetas que no conoces, GUÁRDALOS. " +
+    "Antes de responder a una pregunta compleja sobre el funcionamiento interno o datos históricos, BUSCA en la base de datos de conocimiento.\n" +
     "- Cruce de datos: Relaciona el historial del usuario con el catálogo actual.\n\n" +
     "Reglas de Oro:\n" +
     "- Llama a múltiples herramientas en paralelo si es necesario para dar una respuesta completa.\n" +
