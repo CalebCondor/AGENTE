@@ -92,4 +92,32 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ["busqueda"],
     },
   },
+  {
+    name: "guardar_memoria_usuario",
+    description:
+      "Guarda un dato importante sobre el usuario en su memoria a largo plazo. " +
+      "Úsalo para recordar preferencias, nombres de familiares, condiciones médicas mencionadas, " +
+      "o cualquier detalle personal que mejore la atención a futuro.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clave: { type: "string", description: "Nombre corto del dato (ej: 'alergias', 'nombre_hijo', 'preferencia_contacto')." },
+        valor: { type: "string", description: "El detalle a recordar." },
+      },
+      required: ["clave", "valor"],
+    },
+  },
+  {
+    name: "consultar_memoria_usuario",
+    description:
+      "Consulta la memoria a largo plazo del usuario actual para obtener detalles personalizados. " +
+      "Úsalo al inicio de una conversación o cuando necesites recordar algo que el usuario te contó en el pasado.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clave: { type: "string", description: "Opcional: Filtrar por una clave específica. Si se omite, trae toda la memoria." },
+      },
+      required: [],
+    },
+  },
 ];

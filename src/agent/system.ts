@@ -1,7 +1,8 @@
 
 import { sessions } from "./state";
+import { db } from "./db";
 
-export function buildSystem(chatId: number): string {
+export async function buildSystem(chatId: number): Promise<string> {
   const s = sessions.get(chatId);
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES', { 
@@ -12,6 +13,21 @@ export function buildSystem(chatId: number): string {
   });
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
+  // Consultar memoria a largo plazo para inyectarla en el prompt
+  let userMemoryInfo = "";
+  try {
+    const { rows } = await db.query(
+      "SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1",
+      [chatId]
+    );
+    if (rows.length > 0) {
+      userMemoryInfo = "\n\nMEMORIA A LARGO PLAZO DEL USUARIO:\n" + 
+        rows.map(r => `- ${r.clave}: ${r.valor}`).join("\n");
+    }
+  } catch (e) {
+    console.error("Error fetching memory for system prompt:", e);
+  }
+
   const authInfo = s
     ? `El usuario esta autenticado como: ${s.name}. Sesion activa — puede consultar perfil, ordenes y pagos.`
     : "El usuario NO esta autenticado. Si necesita datos personales (perfil, ordenes, pagos), indicale que use /login usuario clave.";
@@ -21,6 +37,7 @@ export function buildSystem(chatId: number): string {
     `Fecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
     "Tu función es contestar preguntas sobre los servicios médicos de DoctorRecetas y sus costos, informar sobre horarios y explicar en detalle cada servicio.\n\n" +
     authInfo +
+    userMemoryInfo +
     "\n\n" +
     "Directrices de Atención Médica:\n" +
     "- EVALUACIÓN DE SÍNTOMAS: Evalúa los síntomas del paciente para recomendar una consulta médica cuando sea necesario. " +
@@ -32,11 +49,15 @@ export function buildSystem(chatId: number): string {
     "Capacidades:\n" +
     "- Gestión autónoma de perfil, servicios, costos y horarios.\n" +
     "- APRENDIZAJE CONTINUO: Tienes acceso a base de datos de conocimiento (`buscar_conocimiento`, `recordar_conocimiento`). " +
-    "Si aprendes algo nuevo sobre protocolos de DoctorRecetas, GUÁRDALO.\n\n" +
+    "Si aprendes algo nuevo sobre protocolos de DoctorRecetas, GUÁRDALO.\n" +
+    "- MEMORIA A LARGO PLAZO PARA PERSONALIZACIÓN: " +
+    "Usa `guardar_memoria_usuario` para registrar detalles que el usuario mencione (alergias, intereses, nombres de familiares, historial de quejas, etc.) " +
+    "y `consultar_memoria_usuario` al inicio o durante la charla para ofrecer una experiencia única y recordada.\n\n" +
     "Reglas de Oro:\n" +
     "- Llama a múltiples herramientas en paralelo si es necesario.\n" +
     "- Si una herramienta devuelve `formatted_html`, intégralo en tu respuesta.\n" +
-    "- Si el usuario está autenticado, personaliza la atención.\n\n" +
+    "- Si el usuario está autenticado, personaliza la atención.\n" +
+    "- Recuerda siempre CONSULTAR LA MEMORIA al empezar si no recuerdas algo clave del usuario.\n\n" +
     "FORMATO DE RESPUESTA (Estético y Estructurado):\n" +
     "- Usa <b>Negritas</b> para títulos y datos clave (precios, horarios).\n" +
     "- Usa <code>bloques de código</code> para números de referencia o folios.\n" +

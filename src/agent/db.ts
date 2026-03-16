@@ -25,6 +25,24 @@ export async function initDb() {
       fuente TEXT DEFAULT 'aprendizaje_ia',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS memoria_largo_plazo (
+      id SERIAL PRIMARY KEY,
+      chat_id BIGINT NOT NULL,
+      clave TEXT NOT NULL,
+      valor TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_memoria_usuario ON memoria_largo_plazo (chat_id, clave);
+
+    CREATE TABLE IF NOT EXISTS historial_mensajes (
+      id SERIAL PRIMARY KEY,
+      chat_id BIGINT NOT NULL,
+      role TEXT NOT NULL,
+      content JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_historial_chat ON historial_mensajes (chat_id, created_at);
   `;
   try {
     await db.query(createTableQuery);

@@ -7,6 +7,47 @@ import { client, ANTHROPIC_MODEL, conversations } from "./state";
 import { TOOLS } from "./tools";
 import { executeTool } from "./executor";
 import { buildSystem } from "./system";
+import { db } from "./db";
+
+/** Carga el historial desde la base de datos si la memoria en vivo está vacía */
+async function loadHistoryIfEmpty(chatId: number): Promise<Anthropic.MessageParam[]> {
+  if (!conversations.has(chatId)) {
+    try {
+      const { rows } = await db.query(
+        "SELECT role, content FROM historial_mensajes WHERE chat_id = $1 ORDER BY created_at ASC LIMIT 50",
+        [chatId]
+      );
+      const history = rows.map(r => {
+        let content = r.content;
+        if (typeof content === 'string') {
+          try {
+            content = JSON.parse(content);
+          } catch (e) {
+            // Si no es JSON válido (ej: texto plano de versiones anteriores), lo usamos tal cual
+          }
+        }
+        return { role: r.role, content };
+      }) as Anthropic.MessageParam[];
+      conversations.set(chatId, history);
+    } catch (e) {
+      console.error(`[loop] Error loading history: ${e}`);
+      conversations.set(chatId, []);
+    }
+  }
+  return conversations.get(chatId)!;
+}
+
+/** Guarda un mensaje en la base de datos */
+async function persistMessage(chatId: number, role: string, content: any): Promise<void> {
+  try {
+    await db.query(
+      "INSERT INTO historial_mensajes (chat_id, role, content) VALUES ($1, $2, $3)",
+      [chatId, role, JSON.stringify(content)]
+    );
+  } catch (e) {
+    console.error(`[loop] Error persisting message: ${e}`);
+  }
+}
 
 /** Elimina todas las etiquetas HTML dejando solo el texto plano */
 function stripHtml(html: string): string {
@@ -50,11 +91,13 @@ export async function runAgent(
   chatId: number,
   userText: string,
 ): Promise<void> {
-  if (!conversations.has(chatId)) conversations.set(chatId, []);
-  const history = conversations.get(chatId)!;
+  const history = await loadHistoryIfEmpty(chatId);
 
-  history.push({ role: "user", content: userText });
-  if (history.length > 30) history.splice(0, history.length - 30);
+  const userMsg: Anthropic.MessageParam = { role: "user", content: userText };
+  history.push(userMsg);
+  await persistMessage(chatId, "user", userText);
+  
+  if (history.length > 50) history.splice(0, history.length - 50);
 
   await bot.sendChatAction(chatId, "typing");
 
@@ -62,10 +105,11 @@ export async function runAgent(
 
   try {
     for (let round = 0; round < 10; round++) {
+      const systemPrompt = await buildSystem(chatId);
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
         max_tokens: 4096,
-        system: buildSystem(chatId),
+        system: systemPrompt,
         tools: TOOLS,
         messages,
       });
@@ -83,6 +127,8 @@ export async function runAgent(
         const finalText = textBlocks.join("\n").trim();
         if (finalText) {
           history.push({ role: "assistant", content: finalText });
+          await persistMessage(chatId, "assistant", finalText);
+          
           for (
             let offset = 0;
             offset < Math.max(finalText.length, 1);
@@ -96,6 +142,8 @@ export async function runAgent(
 
       // Ejecutar cada tool y devolver resultados a Claude
       messages.push({ role: "assistant", content: response.content });
+      history.push({ role: "assistant", content: response.content });
+      await persistMessage(chatId, "assistant", response.content);
 
       const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
@@ -129,6 +177,8 @@ export async function runAgent(
         });
       }
       messages.push({ role: "user", content: toolResults });
+      history.push({ role: "user", content: toolResults });
+      await persistMessage(chatId, "user", toolResults);
     }
 
     await bot.sendMessage(

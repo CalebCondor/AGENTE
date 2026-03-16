@@ -173,5 +173,36 @@ export async function executeTool(
     }
   }
 
+  if (toolName === "guardar_memoria_usuario") {
+    const k = String(toolInput["clave"] ?? "").toLowerCase().trim();
+    const v = String(toolInput["valor"] ?? "").trim();
+    try {
+      await db.query(
+        "INSERT INTO memoria_largo_plazo (chat_id, clave, valor) VALUES ($1, $2, $3) " +
+        "ON CONFLICT (chat_id, clave) DO UPDATE SET valor = EXCLUDED.valor, updated_at = CURRENT_TIMESTAMP",
+        [chatId, k, v]
+      );
+      return JSON.stringify({ success: true, message: `Memorizado: ${k}` });
+    } catch (e: any) {
+      return JSON.stringify({ success: false, error: e.message });
+    }
+  }
+
+  if (toolName === "consultar_memoria_usuario") {
+    const k = toolInput["clave"] ? String(toolInput["clave"]).toLowerCase().trim() : null;
+    try {
+      let query = "SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1";
+      let params: any[] = [chatId];
+      if (k) {
+        query += " AND clave = $2";
+        params.push(k);
+      }
+      const { rows } = await db.query(query, params);
+      return JSON.stringify({ success: true, memoria: rows });
+    } catch (e: any) {
+      return JSON.stringify({ success: false, error: e.message });
+    }
+  }
+
   return JSON.stringify({ success: false, error: `Herramienta desconocida: ${toolName}` });
 }

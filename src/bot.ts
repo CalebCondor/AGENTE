@@ -4,7 +4,7 @@ import { runAgent } from "./agent/loop";
 import { conversations, sessions, ANTHROPIC_MODEL } from "./agent/state";
 import { apiPost } from "./api/http";
 import { LOGIN_URL } from "./api/urls";
-import { initDb } from "./agent/db";
+import { initDb, db } from "./agent/db";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TELEGRAM_BOT_TOKEN) throw new Error("Missing TELEGRAM_BOT_TOKEN");
@@ -45,8 +45,9 @@ bot.onText(/\/start/, async (msg) => {
 
 // ── /reset ────────────────────────────────────────────────────────────
 bot.onText(/\/reset/, async (msg) => {
-  conversations.delete(msg.chat.id);
-  await bot.sendMessage(msg.chat.id, "Historial borrado.");
+  const chatId = msg.chat.id;
+  conversations.delete(chatId);
+  await bot.sendMessage(chatId, "Historial local limpiado, pero mi memoria persistente sigue intacta. ¡Dime en qué puedo ayudarte!");
 });
 
 // ── /login usuario clave ──────────────────────────────────────────────
