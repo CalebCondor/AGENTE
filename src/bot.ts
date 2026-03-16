@@ -18,6 +18,13 @@ initDb().then(() => {
 
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
+// Limpiar WebHooks previos para evitar conflictos de sesiones duplicadas (Error 409)
+bot.deleteWebHook().then(() => {
+  console.info("WebHook eliminado para evitar conflictos.");
+}).catch(err => {
+  console.warn("Error al eliminar WebHook:", err.message);
+});
+
 console.info(`Bot iniciado: ${ANTHROPIC_MODEL} | DoctorRecetas agent tool_use`);
 
 // ── /start ────────────────────────────────────────────────────────────
