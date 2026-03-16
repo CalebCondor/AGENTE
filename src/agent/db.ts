@@ -16,10 +16,6 @@ export const db = {
   query: (text: string, params?: any[]) => pool.query(text, params),
 };
 
-/**
- * Inicializa las tablas necesarias si no existen.
- * Guardaremos preguntas, respuestas y una categoría/etiqueta para el aprendizaje.
- */
 export async function initDb() {
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS conocimiento_especifico (
