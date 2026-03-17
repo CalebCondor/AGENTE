@@ -108,7 +108,7 @@ export async function runAgent(
       const systemPrompt = await buildSystem(chatId);
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
-        max_tokens: 4096,
+        max_tokens: 1024,
         system: systemPrompt,
         tools: TOOLS,
         messages,
@@ -170,10 +170,20 @@ export async function runAgent(
           // No es JSON o no tiene formatted_html, ignoramos
         }
 
+        // Strip formatted_html before feeding back to Claude — it was already sent to the user
+        let resultForClaude = resultStr;
+        try {
+          const parsed = JSON.parse(resultStr);
+          if (parsed.formatted_html) {
+            const { formatted_html: _, ...rest } = parsed;
+            resultForClaude = JSON.stringify(rest);
+          }
+        } catch { /* not JSON, use as-is */ }
+
         toolResults.push({
           type: "tool_result",
           tool_use_id: tu.id,
-          content: resultStr,
+          content: resultForClaude,
         });
       }
       messages.push({ role: "user", content: toolResults });

@@ -118,28 +118,28 @@ export async function executeTool(
     const busqueda = String(toolInput["busqueda"] ?? "").toLowerCase().trim();
 
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-      const allItems: Record<string, unknown>[] = [];
+      const allItems: { id: unknown; titulo: string; precio: unknown; web_url: string; categoria: string }[] = [];
       for (const [category, products] of Object.entries(raw)) {
         if (Array.isArray(products)) {
           for (const p of products) {
             if (p && typeof p === "object") {
-              const product = { ...p } as Record<string, unknown>;
+              const product = p as Record<string, unknown>;
               const rel = String(product["url"] ?? "");
-              product["web_url"] = rel ? PRODUCTOS_BASE_URL + rel : "";
-              product["categoria"] = category;
-              allItems.push(product);
+              allItems.push({
+                id: product["id"] ?? product["prod_id"] ?? "",
+                titulo: String(product["titulo"] ?? product["nombre"] ?? product["producto"] ?? ""),
+                precio: product["precio"] ?? product["price"] ?? "",
+                web_url: rel ? PRODUCTOS_BASE_URL + rel : "",
+                categoria: category,
+              });
             }
           }
         }
       }
       const filtered = busqueda
-        ? allItems.filter((p) =>
-            String(p["titulo"] ?? p["nombre"] ?? p["producto"] ?? "")
-              .toLowerCase()
-              .includes(busqueda),
-          )
+        ? allItems.filter((p) => p.titulo.toLowerCase().includes(busqueda))
         : allItems;
-      return JSON.stringify({ success: true, data: filtered });
+      return JSON.stringify({ success: true, total: filtered.length, data: filtered });
     }
     return JSON.stringify({ success: false, error: "Formato inesperado de la API" });
   }

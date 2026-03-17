@@ -18,6 +18,9 @@ initDb().then(() => {
 
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
+// Exportar bot para que server.ts pueda usarlo para notificar login
+export { bot };
+
 // Limpiar WebHooks previos para evitar conflictos de sesiones duplicadas (Error 409)
 bot.deleteWebHook().then(() => {
   console.info("WebHook eliminado para evitar conflictos.");
