@@ -4,6 +4,7 @@ import { bot } from "./bot";
 import { sessions } from "./agent/state";
 import { apiPost } from "./api/http";
 import { LOGIN_URL } from "./api/urls";
+import { runAgentApi } from "./agent/loop";
 
 const app = express();
 app.use(express.json());
@@ -110,5 +111,30 @@ app.get("/auth/success", (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor HTTP escuchando en el puerto ${PORT}...`);
+});
+
+// ── POST /api/chat ────────────────────────────────────────────────────
+// Endpoint REST para enviar mensajes al agente y recibir la respuesta.
+// Body JSON: { chat_id: number, message: string }
+// Respuesta:  { success: true, response: string }
+app.post("/api/chat", async (req: Request, res: Response) => {
+  const { chat_id, message } = req.body;
+
+  if (!chat_id || !message) {
+    return res.status(400).json({ success: false, error: "Faltan campos: chat_id y message son requeridos." });
+  }
+
+  const chatId = Number(chat_id);
+  if (isNaN(chatId)) {
+    return res.status(400).json({ success: false, error: "chat_id debe ser un número." });
+  }
+
+  try {
+    const responseText = await runAgentApi(chatId, String(message));
+    return res.json({ success: true, response: responseText });
+  } catch (err) {
+    console.error("[api/chat] Error:", err);
+    return res.status(500).json({ success: false, error: "Error interno del agente." });
+  }
 });
 

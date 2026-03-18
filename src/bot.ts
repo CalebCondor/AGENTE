@@ -9,26 +9,44 @@ import { initDb, db } from "./agent/db";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TELEGRAM_BOT_TOKEN) throw new Error("Missing TELEGRAM_BOT_TOKEN");
 
-// Inicializar DB al arrancar el bot
-initDb().then(() => {
-  console.info("Database initialized successfully.");
-}).catch(err => {
-  console.error("Database initialization failed:", err);
-});
-
-const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
+// Crear bot SIN polling, arrancar solo después de borrar webhook
+const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 
 // Exportar bot para que server.ts pueda usarlo para notificar login
 export { bot };
 
-// Limpiar WebHooks previos para evitar conflictos de sesiones duplicadas (Error 409)
-bot.deleteWebHook().then(() => {
-  console.info("WebHook eliminado para evitar conflictos.");
-}).catch(err => {
-  console.warn("Error al eliminar WebHook:", err.message);
-});
+// Arranque secuencial: DB → advisory lock → deleteWebHook → polling
+(async () => {
+  try {
+    await initDb();
+    console.info("Database initialized successfully.");
+  } catch (err) {
+    console.error("Database initialization failed:", err);
+    process.exit(1);
+  }
 
-console.info(`Bot iniciado: ${ANTHROPIC_MODEL} | DoctorRecetas agent tool_use`);
+  // Usa un advisory lock de Postgres para garantizar una sola instancia global.
+  // pg_try_advisory_lock devuelve false si otro proceso (local o remoto) ya tiene el lock.
+  const LOCK_KEY = 987654321; // número arbitrario único para este bot
+  const { rows } = await db.query("SELECT pg_try_advisory_lock($1) AS acquired", [LOCK_KEY]);
+  if (!rows[0]?.acquired) {
+    console.error(
+      "⛔ Otra instancia del bot ya está corriendo (advisory lock activo). " +
+      "Detén el servidor remoto o el proceso duplicado antes de arrancar aquí."
+    );
+    process.exit(0);
+  }
+  console.info("✅ Advisory lock adquirido — esta es la única instancia activa.");
+
+  try {
+    await bot.deleteWebHook();
+    console.info("WebHook eliminado para evitar conflictos.");
+  } catch (err: any) {
+    console.warn("Error al eliminar WebHook:", err.message);
+  }
+  await bot.startPolling();
+  console.info(`Bot iniciado: ${ANTHROPIC_MODEL} | DoctorRecetas agent tool_use`);
+})();
 
 // ── /start ────────────────────────────────────────────────────────────
 bot.onText(/\/start/, async (msg) => {
