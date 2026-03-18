@@ -8,7 +8,16 @@ import { runAgentApi } from "./agent/loop";
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Para soportar envíos de formularios HTML
+app.use(express.urlencoded({ extended: true }));
+
+// CORS — permite peticiones desde cualquier origen (web, apps, etc.)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") { res.sendStatus(204); return; }
+  next();
+});
 
 // Logger simple para ver CUALQUIER petición que llegue
 app.use((req, res, next) => {
